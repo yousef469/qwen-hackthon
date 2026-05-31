@@ -90,3 +90,30 @@ def get_facts(session_id: str) -> list:
     ).fetchall()
     conn.close()
     return [{"fact": r["fact"], "category": r["category"]} for r in rows]
+
+def clear_session(session_id: str):
+    conn = get_db()
+    conn.execute("DELETE FROM conversations WHERE session_id = ?", (session_id,))
+    conn.execute("DELETE FROM user_profiles WHERE session_id = ?", (session_id,))
+    conn.execute("DELETE FROM facts WHERE session_id = ?", (session_id,))
+    conn.commit()
+    conn.close()
+
+def clear_all_memories():
+    conn = get_db()
+    conn.execute("DELETE FROM conversations")
+    conn.execute("DELETE FROM user_profiles")
+    conn.execute("DELETE FROM facts")
+    conn.commit()
+    conn.close()
+    # Also clear vector_memory from the tools database
+    try:
+        import os
+        import sqlite3
+        vec_db_path = os.path.join(os.path.dirname(__file__), "..", "memory.db")
+        vec_conn = sqlite3.connect(vec_db_path)
+        vec_conn.execute("DELETE FROM vector_memory")
+        vec_conn.commit()
+        vec_conn.close()
+    except:
+        pass

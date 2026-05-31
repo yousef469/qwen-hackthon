@@ -462,7 +462,9 @@ def token_usage(session_id: str):
 def reset_session(session_id: str):
     import tracker
     tracker.reset(session_id)
-    return {"status": "reset"}
+    from memory.store import clear_all_memories
+    clear_all_memories()
+    return {"status": "reset", "cleared": True}
 
 @app.post("/api/add-context/{session_id}")
 def add_context(session_id: str, req: ChatRequest):

@@ -74,7 +74,6 @@ export default function App() {
   const handleOmniStart = () => {
     interimRef.current = '';
     si.reset();
-    chat.setMessages([]);
     omni.startConversation();
   };
 
