@@ -60,7 +60,7 @@ class OrchestratorAgent(BaseAgent):
 
         return {"reply": reply, "agent": agent_used, "tools_used": calls}
 
-    def process_stream(self, session_id: str, user_message: str):
+    def process_stream(self, session_id: str, user_message: str, file_data: str | None = None, file_mime: str | None = None, file_filename: str | None = None):
         store.save_message(session_id, "user", user_message)
 
         memory_context = build_memory_context(session_id)
@@ -73,7 +73,16 @@ class OrchestratorAgent(BaseAgent):
 
         history = store.get_history(session_id)
         recent = [{"role": m["role"], "content": m["content"]} for m in history[-8:] if m.get("content")]
-        conversation = recent + [{"role": "user", "content": user_message}]
+
+        if file_data and file_mime and file_mime.startswith("image/"):
+            conversation = recent + [{"role": "user", "content": [
+                {"type": "text", "text": user_message},
+                {"type": "image_url", "image_url": {"url": f"data:{file_mime};base64,{file_data}"}}
+            ]}]
+        elif file_data and file_filename and file_filename.endswith(".pdf"):
+            conversation = recent + [{"role": "user", "content": f"[Uploaded PDF: {file_filename}]\n\nContent:\n{file_data[:15000]}{'...(truncated)' if len(file_data) > 15000 else ''}\n\n---\n\n{user_message}"}]
+        else:
+            conversation = recent + [{"role": "user", "content": user_message}]
 
         full_reply = ""
         for event in self.run_stream(conversation, full_context):

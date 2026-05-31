@@ -271,8 +271,10 @@ export default function ChatArea({ messages, isLoading, isStreaming, liveThinkin
                       <ThinkingBadge thinking={m.thinking || ''} isStreaming={isStreaming && m.id === messages[messages.length - 1]?.id} />
                     )}
                   <div className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap transition-shadow duration-200 ${
-                    m.role === 'user'
+                    m.role === 'user' && m.msgType !== 'file'
                       ? 'bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-tr-sm shadow-sm'
+                      : m.role === 'user' && m.msgType === 'file'
+                      ? 'bg-white border border-slate-200 text-slate-700 rounded-xl shadow-sm'
                       : 'bg-slate-50 border border-slate-200 text-slate-700 rounded-tl-sm hover:shadow-sm'
                   }`}>
                     <div>
@@ -287,12 +289,12 @@ export default function ChatArea({ messages, isLoading, isStreaming, liveThinkin
                       ) : m.msgType === 'file' && m.fileData ? (
                         <div className="space-y-2">
                           <div className="flex items-center gap-2 text-xs text-slate-500">
-                            <span>📄</span>
+                            <span>{m.fileData.type === 'pdf' ? '📄' : '🖼️'}</span>
                             <span className="font-medium text-slate-700">{m.fileData.filename}</span>
                             <span className="text-[10px] text-slate-400 uppercase">(.{m.fileData.type})</span>
                           </div>
                           {m.fileData.b64 && m.fileData.mime && (
-                            <img src={`data:${m.fileData.mime};base64,${m.fileData.b64}`} alt={m.fileData.filename} className="max-w-[200px] max-h-[200px] rounded-lg border border-slate-200" />
+                            <img src={`data:${m.fileData.mime};base64,${m.fileData.b64}`} alt={m.fileData.filename} className="w-full max-w-sm rounded-xl border border-slate-200 shadow-sm" />
                           )}
                           {m.fileData.description && (
                             <div className="text-xs text-slate-600 italic bg-slate-50 p-2 rounded-lg">🔍 {m.fileData.description}</div>

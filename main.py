@@ -42,6 +42,9 @@ FRONTEND_DIST = os.path.join(os.path.dirname(__file__), "frontend", "dist")
 class ChatRequest(BaseModel):
     session_id: str
     message: str
+    file_data: str | None = None
+    file_mime: str | None = None
+    file_filename: str | None = None
 
 class TTSRequest(BaseModel):
     text: str
@@ -54,7 +57,7 @@ def chat(req: ChatRequest):
 @app.post("/chat/stream")
 def chat_stream(req: ChatRequest):
     return StreamingResponse(
-        orchestrator.process_stream(req.session_id, req.message),
+        orchestrator.process_stream(req.session_id, req.message, file_data=req.file_data, file_mime=req.file_mime, file_filename=req.file_filename),
         media_type="text/event-stream"
     )
 

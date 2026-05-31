@@ -37,8 +37,8 @@ export function useChat() {
 
   const sessionId = SESSION_ID;
 
-  const send = useCallback(async (text: string) => {
-    if (!text.trim()) return;
+  const send = useCallback(async (text: string, fileData?: { data: string; mime: string; filename: string }) => {
+    if (!text.trim() && !fileData) return;
 
     // If currently streaming, abort and prepare for new message
     if (isLoading || isStreaming) {
@@ -73,10 +73,16 @@ export function useChat() {
     abortController = new AbortController();
 
     try {
+      const body: Record<string, string | null> = { session_id: SESSION_ID, message: text.trim(), file_data: null, file_mime: null, file_filename: null };
+      if (fileData) {
+        body.file_data = fileData.data;
+        body.file_mime = fileData.mime;
+        body.file_filename = fileData.filename;
+      }
       const res = await fetch('/chat/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_id: SESSION_ID, message: text.trim() }),
+        body: JSON.stringify(body),
         signal: abortController.signal,
       });
       if (!res.body) throw new Error('No body');

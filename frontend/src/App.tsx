@@ -7,7 +7,7 @@ import ChatArea from './components/ChatArea';
 import InputBar from './components/InputBar';
 import QuestionPanel from './components/QuestionPanel';
 import VoiceOverlay from './components/VoiceOverlay';
-import type { FileData } from './types';
+import type { FileData as FileDataType } from './types';
 const PLAN_PATTERN = /(?:let's|lets|i want to|plan|build|create|design|make|start|develop|launch)\s+(?:a|an|the|my|our)?\s*(?:\w+\s+)*(?:project|app|website|platform|tool|system|service|product)/i;
 
 export default function App() {
@@ -17,6 +17,7 @@ export default function App() {
   const [showOverlay, setShowOverlay] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [pendingPrompt, setPendingPrompt] = useState('');
+  const [pendingFileData, setPendingFileData] = useState<{ data: string; mime: string; filename: string } | null>(null);
   const interimRef = useRef('');
   const lastQuestionRef = useRef('');
 
@@ -82,26 +83,42 @@ export default function App() {
   const handleFileUpload = useCallback(async (file: File) => {
     setIsUploading(true);
     setPendingPrompt('');
+    setPendingFileData(null);
     const formData = new FormData();
     formData.append('file', file);
-    const isImage = ['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(file.name.split('.').pop()?.toLowerCase() || '');
+    const ext = file.name.split('.').pop()?.toLowerCase() || '';
+    const isImage = ['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext);
     try {
       const res = await fetch('/api/upload', { method: 'POST', body: formData });
-      const data: FileData & { error?: string } = await res.json();
+      const data: FileDataType & { error?: string } = await res.json();
       if (data.error) throw new Error(data.error);
-      const description = isImage
-        ? (data.description || '').slice(0, 500)
-        : (data.text || '').slice(0, 500);
-      setPendingPrompt(isImage
-        ? `I uploaded this image. Can you analyze it for me?\n\n${description}`
-        : `I uploaded this file. Can you review it for me?\n\n${description}`);
+      // Show the uploaded file in chat
+      const fileMsgId = 'file-' + Date.now();
+      if (isImage && data.b64 && data.mime) {
+        setPendingFileData({ data: data.b64, mime: data.mime, filename: file.name });
+        chat.setMessages(prev => [...prev, {
+          id: fileMsgId, role: 'user', content: '',
+          msgType: 'file',
+          fileData: { type: 'image', filename: file.name, b64: data.b64, mime: data.mime, description: (data.description || '').slice(0, 300) },
+        }]);
+        setPendingPrompt('What can you tell me about this image?');
+      } else if (data.text) {
+        const txt = data.text as string;
+        setPendingFileData({ data: txt, mime: 'text/plain', filename: file.name });
+        chat.setMessages(prev => [...prev, {
+          id: fileMsgId, role: 'user', content: '',
+          msgType: 'file',
+          fileData: { type: 'pdf', filename: file.name, text: txt.slice(0, 3000) },
+        }]);
+        setPendingPrompt('What does this document contain?');
+      }
     } catch (e: unknown) {
       const errMsg = e instanceof Error ? e.message : 'Upload failed';
       setPendingPrompt(`Upload failed: ${errMsg}`);
     } finally {
       setIsUploading(false);
     }
-  }, []);
+  }, [chat]);
 
   const handleExportPdf = useCallback(() => {
     const msgs = chat.messages.map(m => ({ role: m.role, content: m.content }));
@@ -121,6 +138,8 @@ export default function App() {
 
   const handleTextSend = useCallback((text: string) => {
     setPendingPrompt('');
+    const fd = pendingFileData;
+    setPendingFileData(null);
     if (si.isActive) {
       chat.setMessages(prev => [...prev, { id: 'si-ans-' + Date.now(), role: 'user', content: text }]);
       si.sendAnswer(text);
@@ -128,7 +147,7 @@ export default function App() {
     }
     if (si.isComplete) {
       si.reset();
-      chat.send(text);
+      chat.send(text, fd || undefined);
       return;
     }
     if (PLAN_PATTERN.test(text)) {
@@ -136,8 +155,8 @@ export default function App() {
       si.startInterview(text);
       return;
     }
-    chat.send(text);
-  }, [si.isActive, si.isComplete, si.sendAnswer, si.startInterview, si.reset, chat]);
+    chat.send(text, fd || undefined);
+  }, [si.isActive, si.isComplete, si.sendAnswer, si.startInterview, si.reset, chat, pendingFileData]);
 
   const handleSiAnswer = useCallback((answer: string) => {
     chat.setMessages(prev => [...prev, { id: 'si-ans-' + Date.now(), role: 'user', content: answer }]);
