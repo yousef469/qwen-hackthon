@@ -84,34 +84,24 @@ export default function App() {
     setPendingPrompt('');
     const formData = new FormData();
     formData.append('file', file);
-    const ext = file.name.split('.').pop()?.toLowerCase() || '';
-    const isImage = ['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext);
+    const isImage = ['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(file.name.split('.').pop()?.toLowerCase() || '');
     try {
       const res = await fetch('/api/upload', { method: 'POST', body: formData });
       const data: FileData & { error?: string } = await res.json();
       if (data.error) throw new Error(data.error);
-      const summary = isImage
-        ? (data.description || '').slice(0, 200)
-        : (data.text || '').slice(0, 300);
-      // Save file context to backend so AI knows about it
-      const fileContent = isImage
-        ? `📷 Image: ${file.name}\n\nAI Analysis: ${data.description || '(no description available)'}`
-        : `📄 File: ${file.name}\n\nContent:\n${(data.text || '').slice(0, 4000)}${(data.text || '').length > 4000 ? '\n...(truncated)' : ''}`;
-      fetch('/api/add-context/' + chat.sessionId, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_id: chat.sessionId, message: fileContent }),
-      }).catch(() => {});
+      const description = isImage
+        ? (data.description || '').slice(0, 500)
+        : (data.text || '').slice(0, 500);
       setPendingPrompt(isImage
-        ? `Tell me about this image: ${file.name}`
-        : `Please review this file: ${file.name}\n${summary ? `\nKey content:\n${summary}\n` : ''}`);
+        ? `I uploaded this image. Can you analyze it for me?\n\n${description}`
+        : `I uploaded this file. Can you review it for me?\n\n${description}`);
     } catch (e: unknown) {
       const errMsg = e instanceof Error ? e.message : 'Upload failed';
       setPendingPrompt(`Upload failed: ${errMsg}`);
     } finally {
       setIsUploading(false);
     }
-  }, [chat]);
+  }, []);
 
   const handleExportPdf = useCallback(() => {
     const msgs = chat.messages.map(m => ({ role: m.role, content: m.content }));
