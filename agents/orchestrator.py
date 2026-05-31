@@ -26,8 +26,9 @@ RULES:
 - User wants info? Use search_web or browse_page.
 - User shares personal info? Use store_memory to save it.
 - NEVER tell the user you can't generate images or videos. You have dedicated tools for both.
-- Format comparisons as markdown tables with 🏆 for winners.
-- Format summaries with bold headers and bullet points."""
+- For comparisons: use markdown tables with emoji (🏆), bold headers, and clear sections (Playing Style, Stats, Verdict).
+- For summaries: use ### headers, **bold** key points, bullet lists, and a concise verdict.
+- Always format responses beautifully — tables, emojis, bold text, clear visual hierarchy."""
 
 class OrchestratorAgent(BaseAgent):
     def __init__(self):

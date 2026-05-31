@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Message, WorkflowState } from '../types';
 import PinnedNoteCard from './PinnedNoteCard';
 import ImageDisplay from './ImageDisplay';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface KeypointCard {
   number: number;
@@ -302,6 +304,35 @@ export default function ChatArea({ messages, isLoading, isStreaming, liveThinkin
                             </details>
                           )}
                         </div>
+                      ) : m.role === 'assistant' ? (
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            table: ({ children }) => (
+                              <div className="overflow-x-auto my-2">
+                                <table className="w-full text-xs border-collapse border border-slate-200 rounded-lg overflow-hidden">{children}</table>
+                              </div>
+                            ),
+                            th: ({ children }) => <th className="border border-slate-200 bg-slate-50 px-3 py-1.5 text-left font-semibold text-slate-600">{children}</th>,
+                            td: ({ children }) => <td className="border border-slate-200 px-3 py-1.5 text-slate-600">{children}</td>,
+                            strong: ({ children }) => <strong className="font-semibold text-slate-800">{children}</strong>,
+                            ul: ({ children }) => <ul className="list-disc pl-5 my-1 space-y-0.5">{children}</ul>,
+                            ol: ({ children }) => <ol className="list-decimal pl-5 my-1 space-y-0.5">{children}</ol>,
+                            li: ({ children }) => <li className="text-slate-600">{children}</li>,
+                            h1: ({ children }) => <h1 className="text-base font-bold text-slate-800 mt-3 mb-1">{children}</h1>,
+                            h2: ({ children }) => <h2 className="text-sm font-bold text-slate-800 mt-3 mb-1">{children}</h2>,
+                            h3: ({ children }) => <h3 className="text-sm font-semibold text-slate-700 mt-2 mb-1">{children}</h3>,
+                            p: ({ children }) => <p className="my-1 text-slate-600">{children}</p>,
+                            code: ({ className, children, ...props }) => {
+                              const isInline = !className;
+                              return isInline
+                                ? <code className="bg-slate-100 px-1 py-0.5 rounded text-[11px] font-mono text-pink-600">{children}</code>
+                                : <code className="block bg-slate-50 p-3 rounded-lg text-[11px] font-mono text-slate-600 overflow-x-auto my-2 border border-slate-200" {...props}>{children}</code>;
+                            },
+                          }}
+                        >
+                          {m.content}
+                        </ReactMarkdown>
                       ) : (
                         m.content
                       )}

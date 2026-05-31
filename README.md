@@ -217,4 +217,3 @@ cd frontend && npm run build
 - [Qwen Cloud Console](https://www.aliyun.com/product/bailian)
 - [Model Studio API](https://help.aliyun.com/zh/model-studio/)
 - [Hackathon on Devpost](https://qwen-hackathon.devpost.com)
-# qwen-hackthon
