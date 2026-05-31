@@ -1,0 +1,8 @@
+services:
+  - type: web
+    name: qwen-agent
+    env: docker
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: QWEN_API_KEY
+        sync: false
