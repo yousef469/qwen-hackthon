@@ -1,6 +1,15 @@
+---
+title: Qwen Agent Platform
+emoji: 🤖
+colorFrom: pink
+colorTo: purple
+sdk: docker
+pinned: false
+---
+
 # Qwen Agent Platform
 
-**MemoryAgent · Agent Society · Autopilot · Voice · Vision · Image Gen**
+**MemoryAgent · Voice · Vision · Image Gen · Workflows**
 
 A production-grade multi-agent platform built on **Qwen Cloud API** (Alibaba Cloud Model Studio) for the **2026 Qwen Cloud Hackathon**. Combines persistent memory, specialized agent routing, structured workflow automation, Omni realtime voice, structured interviews, file analysis, and image generation — all in a single chat interface.
 
