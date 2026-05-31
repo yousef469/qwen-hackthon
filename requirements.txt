@@ -8,3 +8,4 @@ playwright
 duckduckgo_search
 beautifulsoup4
 lxml
+websockets
