@@ -8,7 +8,8 @@ RUN apt-get update && apt-get install -y curl && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt && \
+    python3 -m playwright install chromium 2>&1 || true
 
 COPY frontend frontend/
 RUN cd frontend && npm install && npm run build
