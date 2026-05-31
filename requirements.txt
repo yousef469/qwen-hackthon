@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+openai
+httpx
+pypdf
+fpdf2
+playwright
+duckduckgo_search
+beautifulsoup4
+lxml
