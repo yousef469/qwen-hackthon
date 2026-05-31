@@ -52,7 +52,11 @@ export function useChat() {
       setLiveThinking('');
     }
 
-    const userMsg: Message = { id: 'u-' + Date.now(), role: 'user', content: text.trim() };
+    const userMsg: Message = fileData && fileData.mime.startsWith('image/')
+      ? { id: 'u-' + Date.now(), role: 'user', content: text.trim(), msgType: 'file', fileData: { type: 'image', filename: fileData.filename, b64: fileData.data, mime: fileData.mime } }
+      : fileData
+      ? { id: 'u-' + Date.now(), role: 'user', content: text.trim(), msgType: 'file', fileData: { type: 'pdf', filename: fileData.filename, text: fileData.data.slice(0, 3000) } }
+      : { id: 'u-' + Date.now(), role: 'user', content: text.trim() };
     const streamId = 's-' + Date.now();
     const streamMsg: Message = { id: streamId, role: 'assistant', content: '', thinking: '' };
 

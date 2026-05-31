@@ -14,9 +14,11 @@ interface Props {
   onExportPdf?: () => void;
   hasMessages?: boolean;
   initialText?: string;
+  pendingFile?: { data: string; mime: string; filename: string } | null;
+  onClearPendingFile?: () => void;
 }
 
-export default function InputBar({ onSend, onVoiceToggle, isRecording, disabled, isSpeaking, isInterviewMode, onConfirm, onEndConversation, onFileUpload, isUploading, onExportPdf, hasMessages, initialText }: Props) {
+export default function InputBar({ onSend, onVoiceToggle, isRecording, disabled, isSpeaking, isInterviewMode, onConfirm, onEndConversation, onFileUpload, isUploading, onExportPdf, hasMessages, initialText, pendingFile, onClearPendingFile }: Props) {
   const [text, setText] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -25,11 +27,11 @@ export default function InputBar({ onSend, onVoiceToggle, isRecording, disabled,
   }, [initialText]);
 
   const handleSend = useCallback(() => {
-    if (text.trim() && !disabled) {
+    if ((text.trim() || pendingFile) && !disabled) {
       onSend(text.trim());
       setText('');
     }
-  }, [text, disabled, onSend]);
+  }, [text, disabled, onSend, pendingFile]);
 
   const handleKey = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -44,8 +46,38 @@ export default function InputBar({ onSend, onVoiceToggle, isRecording, disabled,
     e.target.value = '';
   }, [onFileUpload]);
 
+  const isImage = pendingFile?.mime?.startsWith('image/');
+
   return (
     <div className="border-t border-slate-200 px-6 py-3.5 bg-white">
+      {/* Pending file preview */}
+      {pendingFile && (
+        <div className="max-w-4xl mx-auto mb-2.5 flex items-center gap-2.5 animate-fade-in">
+          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-600">
+            {isImage ? (
+              <img
+                src={`data:${pendingFile.mime};base64,${pendingFile.data}`}
+                alt={pendingFile.filename}
+                className="w-10 h-10 rounded-lg object-cover border border-slate-200"
+              />
+            ) : (
+              <span className="w-10 h-10 flex items-center justify-center text-lg bg-pink-50 rounded-lg">📄</span>
+            )}
+            <div className="flex flex-col">
+              <span className="font-medium text-slate-700 truncate max-w-[200px]">{pendingFile.filename}</span>
+              <span className="text-[10px] text-slate-400">{isImage ? 'Image attached' : 'PDF attached'} — will be sent with your message</span>
+            </div>
+          </div>
+          <button
+            onClick={onClearPendingFile}
+            className="w-6 h-6 rounded-full flex items-center justify-center text-xs text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all shrink-0"
+            title="Remove attachment"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       <div className="max-w-4xl mx-auto flex items-center gap-2.5">
 
         {/* Mic button */}
@@ -116,7 +148,7 @@ export default function InputBar({ onSend, onVoiceToggle, isRecording, disabled,
         {/* Send button */}
         <button
           onClick={handleSend}
-          disabled={!text.trim() || disabled}
+          disabled={(!text.trim() && !pendingFile) || disabled}
           className="px-5 py-2.5 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 disabled:from-slate-200 disabled:to-slate-200 disabled:text-slate-400 text-white text-sm font-semibold rounded-xl transition-all duration-200 shadow-sm disabled:shadow-none shrink-0 active:scale-95"
         >
           Send

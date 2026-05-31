@@ -92,24 +92,12 @@ export default function App() {
       const res = await fetch('/api/upload', { method: 'POST', body: formData });
       const data: FileDataType & { error?: string } = await res.json();
       if (data.error) throw new Error(data.error);
-      // Show the uploaded file in chat
-      const fileMsgId = 'file-' + Date.now();
       if (isImage && data.b64 && data.mime) {
         setPendingFileData({ data: data.b64, mime: data.mime, filename: file.name });
-        chat.setMessages(prev => [...prev, {
-          id: fileMsgId, role: 'user', content: '',
-          msgType: 'file',
-          fileData: { type: 'image', filename: file.name, b64: data.b64, mime: data.mime, description: (data.description || '').slice(0, 300) },
-        }]);
         setPendingPrompt('What can you tell me about this image?');
       } else if (data.text) {
         const txt = data.text as string;
         setPendingFileData({ data: txt, mime: 'text/plain', filename: file.name });
-        chat.setMessages(prev => [...prev, {
-          id: fileMsgId, role: 'user', content: '',
-          msgType: 'file',
-          fileData: { type: 'pdf', filename: file.name, text: txt.slice(0, 3000) },
-        }]);
         setPendingPrompt('What does this document contain?');
       }
     } catch (e: unknown) {
@@ -118,7 +106,11 @@ export default function App() {
     } finally {
       setIsUploading(false);
     }
-  }, [chat]);
+  }, []);
+
+  const clearPendingFile = useCallback(() => {
+    setPendingFileData(null);
+  }, []);
 
   const handleExportPdf = useCallback(() => {
     const msgs = chat.messages.map(m => ({ role: m.role, content: m.content }));
@@ -150,7 +142,7 @@ export default function App() {
       chat.send(text, fd || undefined);
       return;
     }
-    if (PLAN_PATTERN.test(text)) {
+    if (PLAN_PATTERN.test(text) && !fd) {
       chat.setMessages(prev => [...prev, { id: 'si-start-' + Date.now(), role: 'user', content: text }]);
       si.startInterview(text);
       return;
@@ -279,6 +271,8 @@ export default function App() {
             onExportPdf={handleExportPdf}
             hasMessages={chat.messages.length > 0}
             initialText={pendingPrompt}
+            pendingFile={pendingFileData}
+            onClearPendingFile={clearPendingFile}
           />
         </main>
       </div>
