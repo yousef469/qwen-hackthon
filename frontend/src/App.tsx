@@ -73,7 +73,6 @@ export default function App() {
 
   const handleOmniStart = () => {
     interimRef.current = '';
-    si.reset();
     omni.startConversation();
   };
 
@@ -85,13 +84,8 @@ export default function App() {
     setPendingPrompt('');
     const formData = new FormData();
     formData.append('file', file);
-    const fileId = 'file-u-' + Date.now();
     const ext = file.name.split('.').pop()?.toLowerCase() || '';
     const isImage = ['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext);
-    chat.setMessages(prev => [...prev, {
-      id: fileId, role: 'user', content: `📄 Uploaded: ${file.name}${isImage ? '' : ' (processing...)'}`,
-      msgType: 'file', fileData: { type: ext, filename: file.name }
-    }]);
     try {
       const res = await fetch('/api/upload', { method: 'POST', body: formData });
       const data: FileData & { error?: string } = await res.json();
@@ -99,18 +93,21 @@ export default function App() {
       const summary = isImage
         ? (data.description || '').slice(0, 200)
         : (data.text || '').slice(0, 300);
+      // Save file context to backend so AI knows about it
       const fileContent = isImage
         ? `📷 Image: ${file.name}\n\nAI Analysis: ${data.description || '(no description available)'}`
         : `📄 File: ${file.name}\n\nContent:\n${(data.text || '').slice(0, 4000)}${(data.text || '').length > 4000 ? '\n...(truncated)' : ''}`;
-      chat.setMessages(prev => prev.map(m =>
-        m.id === fileId ? { ...m, content: fileContent, fileData: { ...m.fileData!, ...data } } : m
-      ));
+      fetch('/api/add-context/' + chat.sessionId, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: chat.sessionId, message: fileContent }),
+      }).catch(() => {});
       setPendingPrompt(isImage
         ? `Tell me about this image: ${file.name}`
         : `Please review this file: ${file.name}\n${summary ? `\nKey content:\n${summary}\n` : ''}`);
     } catch (e: unknown) {
       const errMsg = e instanceof Error ? e.message : 'Upload failed';
-      chat.setMessages(prev => prev.map(m => m.id === fileId ? { ...m, content: `❌ ${errMsg}` } : m));
+      setPendingPrompt(`Upload failed: ${errMsg}`);
     } finally {
       setIsUploading(false);
     }

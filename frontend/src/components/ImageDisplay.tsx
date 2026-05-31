@@ -36,22 +36,23 @@ export default function ImageDisplay({ svg, imageB64, mime, prompt, isGenerating
 
   if (isGenerating) {
     return (
-      <div className="w-full max-w-md rounded-2xl overflow-hidden bg-slate-100 border border-slate-200" style={{ aspectRatio: '1' }}>
+      <div className="w-full max-w-md rounded-2xl overflow-hidden bg-slate-100 border border-pink-200" style={{ aspectRatio: '1' }}>
         <div className="w-full h-full relative flex flex-col">
-          <div className="px-4 py-3">
-            <span className="text-sm font-medium text-slate-600">Creating image</span>
+          <div className="px-4 py-3 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-pink-500 animate-pulse" />
+            <span className="text-sm font-medium text-pink-600">Creating image...</span>
           </div>
           <div className="flex-1 relative">
             {/* Dot grid pattern */}
             <div className="absolute inset-0" style={{
-              backgroundImage: 'radial-gradient(circle, #d1d5db 1px, transparent 1px)',
+              backgroundImage: 'radial-gradient(circle, #fbcfe8 1px, transparent 1px)',
               backgroundSize: '20px 20px',
               opacity: 0.5,
             }} />
             {/* Animated shimmer */}
-            <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/60 to-transparent animate-shimmer" />
-            {/* Subtle pink tint */}
-            <div className="absolute inset-0 bg-gradient-to-br from-pink-50/30 via-transparent to-purple-50/30 animate-pulse" />
+            <div className="absolute inset-0 bg-gradient-to-br from-transparent via-pink-100/60 to-transparent animate-shimmer" />
+            {/* Pink-purple gradient pulse */}
+            <div className="absolute inset-0 bg-gradient-to-br from-pink-200/20 via-transparent to-purple-200/20 animate-pulse" />
           </div>
         </div>
       </div>

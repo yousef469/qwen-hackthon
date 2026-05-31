@@ -1,7 +1,8 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import type { Message, StreamEvent, WorkflowState, WorkflowStep } from '../types';
 
 let SESSION_ID = 'session_' + Math.random().toString(36).substring(2, 10);
+let abortController: AbortController | null = null;
 
 export interface TokenUsage {
   prompt: number;
@@ -19,6 +20,7 @@ export function useChat() {
   const [liveThinking, setLiveThinking] = useState('');
   const [workflow, setWorkflow] = useState<WorkflowState | null>(null);
   const [tokenUsage, setTokenUsage] = useState<TokenUsage>({ prompt: 0, completion: 0, total: 0, limit: 32768 });
+  const streamAbortedRef = useRef(false);
 
   const resetSession = useCallback(() => {
     SESSION_ID = 'session_' + Math.random().toString(36).substring(2, 10);
@@ -36,7 +38,19 @@ export function useChat() {
   const sessionId = SESSION_ID;
 
   const send = useCallback(async (text: string) => {
-    if (!text.trim() || isLoading) return;
+    if (!text.trim()) return;
+
+    // If currently streaming, abort and prepare for new message
+    if (isLoading || isStreaming) {
+      if (abortController) {
+        abortController.abort();
+        abortController = null;
+      }
+      streamAbortedRef.current = true;
+      setIsLoading(false);
+      setIsStreaming(false);
+      setLiveThinking('');
+    }
 
     const userMsg: Message = { id: 'u-' + Date.now(), role: 'user', content: text.trim() };
     const streamId = 's-' + Date.now();
@@ -47,18 +61,23 @@ export function useChat() {
     setIsLoading(true);
     setIsStreaming(true);
     setLiveThinking('');
+    streamAbortedRef.current = false;
 
     let replyText = '';
     let thinkText = '';
     let usedTools = '';
     let pendingImage: { image_b64: string; mime: string; prompt: string } | null = null;
     let pendingVideo: { task_id: string; status: string } | null = null;
+    let generatingImageMsgId: string | null = null;
+
+    abortController = new AbortController();
 
     try {
       const res = await fetch('/chat/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ session_id: SESSION_ID, message: text.trim() }),
+        signal: abortController.signal,
       });
       if (!res.body) throw new Error('No body');
 
@@ -68,9 +87,10 @@ export function useChat() {
 
       let workflowSteps: WorkflowStep[] = [];
 
-      while (true) {
+      while (!streamAbortedRef.current) {
         const { done, value } = await reader.read();
         if (done) break;
+        if (streamAbortedRef.current) break;
         buf += decoder.decode(value, { stream: true });
         const lines = buf.split('\n');
         buf = lines.pop() || '';
@@ -99,15 +119,35 @@ export function useChat() {
               case 'tool_call':
                 setActiveAgent(ev.name || 'tool');
                 usedTools = usedTools ? usedTools + ', ' + ev.name : '🔧 ' + ev.name;
+                // Show generating animation for image/video tools immediately
+                if (ev.name === 'generate_image') {
+                  const imgId = 'gen-' + Date.now();
+                  generatingImageMsgId = imgId;
+                  setMessages(prev => [...prev, { id: imgId, role: 'assistant', content: '', msgType: 'image', isGenerating: true, imageData: { svg: '', prompt: ev.args || '' } }]);
+                }
+                if (ev.name === 'generate_video') {
+                  const vidId = 'gen-vid-' + Date.now();
+                  setMessages(prev => [...prev, { id: vidId, role: 'assistant', content: '🎬 Generating video...', msgType: 'video', fileData: { type: 'video', filename: 'generating...' } }]);
+                }
                 break;
               case 'tool_result':
                 setActiveAgent('orchestrator');
-                if (ev.name === 'generate_image' && (ev.result as any)?.result?.image_b64) {
-                  pendingImage = {
-                    image_b64: (ev.result as any).result.image_b64,
-                    mime: (ev.result as any).result.mime || 'image/png',
-                    prompt: (ev.result as any).result.prompt || '',
-                  };
+                if (ev.name === 'generate_image') {
+                  const result = (ev.result as any)?.result;
+                  if (result?.image_b64) {
+                    pendingImage = {
+                      image_b64: result.image_b64,
+                      mime: result.mime || 'image/png',
+                      prompt: result.prompt || '',
+                    };
+                    if (generatingImageMsgId) {
+                      setMessages(prev => prev.map(m => m.id === generatingImageMsgId ? { ...m, isGenerating: false, imageData: { svg: '', ...pendingImage! } } : m));
+                      generatingImageMsgId = null;
+                    }
+                  } else if (generatingImageMsgId) {
+                    setMessages(prev => prev.map(m => m.id === generatingImageMsgId ? { ...m, content: '❌ Image generation failed', msgType: undefined, imageData: undefined } : m));
+                    generatingImageMsgId = null;
+                  }
                 }
                 if (ev.name === 'generate_video' && (ev.result as any)?.result?.task_id) {
                   pendingVideo = {
@@ -158,24 +198,22 @@ export function useChat() {
         }
       }
 
+      if (streamAbortedRef.current) {
+        setIsStreaming(false);
+        setIsLoading(false);
+        setLiveThinking('');
+        return;
+      }
+
       setMessages(prev => prev.map(m => m.id === streamId ? { ...m, content: replyText, thinking: thinkText || undefined, tools: usedTools || undefined } : m));
       setIsStreaming(false);
       setIsLoading(false);
       setLiveThinking('');
 
-      if (pendingImage) {
-        const imgMsg: Message = {
-          id: 'img-' + Date.now(), role: 'assistant', content: '',
-          msgType: 'image', imageData: { ...pendingImage, svg: '' },
-        };
-        setMessages(prev => [...prev, imgMsg]);
-      }
-
       if (pendingVideo) {
         const vidId = 'vid-' + Date.now();
-        const videoMsg: Message = { id: vidId, role: 'assistant', content: '', msgType: 'video', fileData: { type: 'video', filename: pendingVideo.task_id, text: pendingVideo.task_id } };
+        const videoMsg: Message = { id: vidId, role: 'assistant', content: '🎬 Generating video...', msgType: 'video', fileData: { type: 'video', filename: pendingVideo.task_id } };
         setMessages(prev => [...prev, videoMsg]);
-        // Poll for completion
         const poll = async () => {
           for (let attempt = 0; attempt < 60; attempt++) {
             await new Promise(r => setTimeout(r, 10000));
@@ -184,16 +222,15 @@ export function useChat() {
               const res = await fetch(`/api/video-status/${pendingVideo.task_id}`);
               const data = await res.json();
               if (data.status === 'SUCCEEDED' && data.video_url) {
-                setMessages(prev => prev.map(m => m.id === vidId ? { ...m, content: `🎬 Your video is ready!\n\n${data.video_url}`, fileData: { ...m.fileData!, videoUrl: data.video_url } } : m));
+                setMessages(prev => prev.map(m => m.id === vidId ? { ...m, content: `🎬 Your video is ready!`, fileData: { ...m.fileData!, videoUrl: data.video_url } } : m));
                 return;
               } else if (data.status === 'FAILED') {
                 setMessages(prev => prev.map(m => m.id === vidId ? { ...m, content: '❌ Video generation failed.' } : m));
                 return;
               }
-              setMessages(prev => prev.map(m => m.id === vidId ? { ...m, content: `🎬 Generating video... (${data.status}) — ~${Math.round((60 - attempt) * 10 / 60)} min remaining` } : m));
             } catch { /* retry */ }
           }
-          setMessages(prev => prev.map(m => m.id === vidId ? { ...m, content: '⏱ Video generation timed out. Check task ID later.' } : m));
+          setMessages(prev => prev.map(m => m.id === vidId ? { ...m, content: '⏱ Video generation timed out.' } : m));
         };
         poll();
       }

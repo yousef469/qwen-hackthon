@@ -171,16 +171,10 @@ async def omni_ws(ws: WebSocket):
                 "input_audio_transcription": {"model": "whisper-1"},
                 "turn_detection": {"type": "server_vad"},
                 "instructions": (
-                    "You are a friendly design interview assistant. "
-                    "Have a natural voice conversation with the user about their project. "
-                    "Ask exactly 5 key questions, one at a time, covering: "
-                    "1) project goals and vision, "
-                    "2) target users and audience, "
-                    "3) core features, "
-                    "4) technical constraints, "
-                    "5) success metrics. "
-                    "Listen to each answer, ask short follow-ups for clarity, then move to the next topic. "
-                    "After all 5 topics are covered, guide the user to press the confirm button to generate notes."
+                    "You are a friendly voice assistant powered by Qwen. "
+                    "Have a natural voice conversation with the user. Answer questions, help with tasks, "
+                    "and discuss any topic they bring up. Keep responses concise and conversational "
+                    "since they're being read aloud. When the user is done, they will tap confirm."
                 ),
             }
         }))
@@ -271,15 +265,11 @@ async def omni_ws(ws: WebSocket):
             model="qwen3.5-omni-plus",
             messages=[
                 {"role": "system", "content": (
-                    "You are a design thinking analyst. Based on the conversation transcript below, "
-                    "extract exactly 5 key point cards about the user's project, one for each topic covered. "
-                    "Assign each card a color: "
-                    "blue (goals/vision), red (users/audience), green (features), "
-                    "yellow (technical/constraints), white (metrics/success). "
+                    "Summarize the key discussion points from this voice conversation. "
                     "Return a JSON object with keys: "
                     "cards (array of {color, title, points}), "
-                    "follow_up (a friendly question asking if they'd like to add or change anything). "
-                    "Each card should have 2-4 specific bullet points."
+                    "follow_up (a friendly question to continue the conversation). "
+                    "Each card should have 2-4 bullet points. Use varied colors for cards."
                 )},
                 {"role": "user", "content": full_dialogue}
             ],
